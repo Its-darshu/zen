@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Zen Mode's accessibility service is configured as narrowly as the job allows.
+
+  - accessibilityEventTypes: only window-state changes. That is the single
+    signal needed to know which app came to the front.
+  - canRetrieveWindowContent="false": the service is not permitted to read
+    screen contents, text fields or anything the user types.
+  - packageNames is deliberately absent: the user chooses which apps to block at
+    runtime, so the service cannot be limited to a fixed list at build time.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canRetrieveWindowContent="false"
+    android:description="@string/accessibility_service_description"
+    android:summary="@string/accessibility_service_summary"
+    android:notificationTimeout="100" />

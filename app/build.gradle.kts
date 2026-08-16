@@ -108,6 +108,11 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Compose screens are tested with Robolectric so the UI suite runs on the
+    // JVM alongside the rest of the unit tests, with no device required.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)

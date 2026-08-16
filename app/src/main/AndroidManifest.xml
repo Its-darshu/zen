@@ -1,6 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      Every permission below is required by a feature the user can see. Zen Mode
+      requests no network, storage, contacts, location or telephony permissions:
+      it has no server, and it never places calls itself.
+    -->
+
+    <!-- Keeps a running session alive and visible while it counts down. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!--
+      No existing foreground-service type describes a focus session, so the
+      special-use type is declared honestly rather than borrowing a type that
+      does not apply.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- Ends a session at the moment it is due, even in Doze. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Restores a session that was running when the device restarted. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- The ongoing-session and completion notifications (Android 13+). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      Package visibility (Android 11+). Zen Mode needs to list the apps the user
+      can launch so they can choose which to block, and to resolve the dialer so
+      it is never blocked. This narrow declaration is used deliberately in place
+      of QUERY_ALL_PACKAGES, which would grant far more than is needed.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ZenApplication"
         android:allowBackup="true"
@@ -16,12 +56,83 @@
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.ZenMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Keeps the running session visible and ends it on time while the app is
+          in the background. Started only when the user starts a session, and
+          stopped the moment the session ends.
+        -->
+        <service
+            android:name=".service.ZenForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="@string/fgs_special_use_reason" />
+        </service>
+
+        <!--
+          The app blocker. Enabled only by the user, in Android's own settings,
+          and disableable there at any time.
+        -->
+        <service
+            android:name=".service.ZenAccessibilityService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- Fires when a session's time is up. Internal only. -->
+        <receiver
+            android:name=".service.SessionEndReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.zenmode.app.action.SESSION_END" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          Device-admin component, used only so the app can be made a device
+          owner on a dedicated device (strict mode). It declares no policies.
+          Provisioning is manual and reversible — see docs/STRICT_MODE_SETUP.md.
+          On an ordinary phone this component simply never becomes active.
+        -->
+        <receiver
+            android:name=".system.ZenDeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Restores an interrupted session after a restart or an app update. -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

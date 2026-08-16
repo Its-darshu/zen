@@ -14,5 +14,9 @@ object ZenRoute {
     const val SETTINGS = "settings"
     const val BLOCKED_APPS = "settings/blocked-apps"
     const val PERMISSIONS = "settings/permissions"
-    const val COMPLETION = "completion"
+
+    const val SESSION_ID_ARG = "sessionId"
+    const val COMPLETION = "completion/{$SESSION_ID_ARG}"
+
+    fun completion(sessionId: Long): String = "completion/$sessionId"
 }

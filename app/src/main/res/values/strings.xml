@@ -1,4 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Zen Mode</string>
+
+    <!-- Shown by Android on its own accessibility settings screen. -->
+    <string name="accessibility_service_summary">Returns you to your Zen screen when you open an app you chose to block</string>
+    <string name="accessibility_service_description">Zen Mode uses accessibility access for one purpose: to notice which app is in the foreground while a Zen session is running, so it can bring you back to your Zen screen if you open an app you chose to block.\n\nIt reads only the name of the app in front. It cannot read your screen, your messages, or anything you type. Nothing is recorded and nothing leaves your phone.\n\nIt does nothing when no session is running, and never interrupts the phone dialer, Android settings, your launcher or the system interface. You can turn it off here at any time; Zen Mode keeps working without it, just without app blocking.</string>
+
+    <!-- Notification channels -->
+    <string name="channel_active_session">Active Zen session</string>
+    <string name="channel_active_session_description">A quiet, ongoing notification while a Zen session is running</string>
+    <string name="channel_completion">Session complete</string>
+    <string name="channel_completion_description">Tells you when a Zen session has finished</string>
+
+    <!-- Notifications -->
+    <string name="notification_active_title">Zen Mode is on</string>
+    <string name="notification_active_text">%1$s remaining</string>
+    <string name="notification_complete_title">Zen complete</string>
+    <string name="notification_complete_text">You stayed away for %1$s</string>
+
+    <!-- Foreground service type justification, shown to reviewers, not users. -->
+    <string name="fgs_special_use_reason">Keeps a user-started focus session running and visible, and ends it on time</string>
 </resources>

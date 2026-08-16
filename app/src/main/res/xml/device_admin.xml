@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Zen Mode declares NO device-admin policies.
+
+  The only thing device ownership is used for is being allow-listed for lock
+  task mode, which requires no policy at all. Zen Mode does not want to manage
+  passwords, expire credentials, wipe data, lock the screen or disable the
+  camera, so it asks for none of them.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies />
+</device-admin>

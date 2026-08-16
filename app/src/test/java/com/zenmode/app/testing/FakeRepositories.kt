@@ -6,7 +6,9 @@ import com.zenmode.app.domain.model.SessionStatus
 import com.zenmode.app.domain.model.ZenSession
 import com.zenmode.app.domain.permission.AccessibilityPermissionMonitor
 import com.zenmode.app.domain.repository.BlockedAppRepository
+import com.zenmode.app.domain.model.ZenSettings
 import com.zenmode.app.domain.repository.SessionRepository
+import com.zenmode.app.domain.repository.SettingsRepository
 import com.zenmode.app.domain.repository.ZenModeRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -161,5 +163,58 @@ class FakeAccessibilityPermissionMonitor(enabled: Boolean = false) : Accessibili
 
     fun setEnabled(enabled: Boolean) {
         state.value = enabled
+    }
+}
+
+class FakeSettingsRepository(initial: ZenSettings = ZenSettings()) : SettingsRepository {
+
+    private val settings = MutableStateFlow(initial)
+
+    override fun observeSettings(): Flow<ZenSettings> = settings
+
+    override suspend fun getSettings(): ZenSettings = settings.value
+
+    override suspend fun setDefaultDurationMinutes(minutes: Int) {
+        settings.value = settings.value.copy(defaultDurationMinutes = minutes)
+    }
+
+    override suspend fun setConfirmStart(enabled: Boolean) {
+        settings.value = settings.value.copy(confirmStart = enabled)
+    }
+
+    override suspend fun setCompletionNotification(enabled: Boolean) {
+        settings.value = settings.value.copy(completionNotification = enabled)
+    }
+
+    override suspend fun setPureBlackZenScreen(enabled: Boolean) {
+        settings.value = settings.value.copy(pureBlackZenScreen = enabled)
+    }
+
+    override suspend fun setShowClock(enabled: Boolean) {
+        settings.value = settings.value.copy(showClock = enabled)
+    }
+
+    override suspend fun setShowDate(enabled: Boolean) {
+        settings.value = settings.value.copy(showDate = enabled)
+    }
+
+    override suspend fun setUse24HourClock(enabled: Boolean) {
+        settings.value = settings.value.copy(use24HourClock = enabled)
+    }
+
+    override suspend fun setShowCallButton(enabled: Boolean) {
+        settings.value = settings.value.copy(showCallButton = enabled)
+    }
+
+    override suspend fun setStrictMode(enabled: Boolean) {
+        settings.value = settings.value.copy(strictMode = enabled)
+    }
+
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        settings.value = settings.value.copy(onboardingCompleted = completed)
+    }
+
+    override suspend fun resetToDefaults() {
+        settings.value = ZenSettings(onboardingCompleted = settings.value.onboardingCompleted)
     }
 }

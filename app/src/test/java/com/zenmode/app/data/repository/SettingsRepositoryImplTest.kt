@@ -57,7 +57,7 @@ class SettingsRepositoryImplTest {
         assertEquals(ZenSettings(), settings)
         assertEquals(25, settings.defaultDurationMinutes)
         assertTrue(settings.confirmStart)
-        assertTrue(settings.confirmExit)
+        assertFalse(settings.strictMode)
         assertTrue(settings.completionNotification)
         assertTrue(settings.pureBlackZenScreen)
         assertTrue(settings.showClock)
@@ -77,7 +77,7 @@ class SettingsRepositoryImplTest {
         repository.setShowDate(false)
         repository.setUse24HourClock(false)
         repository.setShowCallButton(false)
-        repository.setConfirmExit(false)
+        repository.setStrictMode(true)
         repository.setOnboardingCompleted(true)
 
         val settings = repository.getSettings()
@@ -90,7 +90,7 @@ class SettingsRepositoryImplTest {
         assertFalse(settings.showDate)
         assertFalse(settings.use24HourClock)
         assertFalse(settings.showCallButton)
-        assertFalse(settings.confirmExit)
+        assertTrue(settings.strictMode)
         assertTrue(settings.onboardingCompleted)
     }
 

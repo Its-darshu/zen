@@ -16,7 +16,11 @@ data class ZenSettings(
     val use24HourClock: Boolean = true,
     // Behavior
     val showCallButton: Boolean = true,
-    val confirmExit: Boolean = true,
+    /**
+     * Ask Android to hold the device in the Zen session using lock task mode.
+     * Only has an effect where the platform permits it — see ZenLockdownController.
+     */
+    val strictMode: Boolean = false,
     // Onboarding
     val onboardingCompleted: Boolean = false,
 ) {

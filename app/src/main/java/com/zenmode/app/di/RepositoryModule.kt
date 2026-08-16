@@ -1,10 +1,14 @@
 package com.zenmode.app.di
 
+import com.zenmode.app.data.local.packages.AndroidInstalledAppsRepository
+import com.zenmode.app.data.permission.AndroidAccessibilityPermissionMonitor
 import com.zenmode.app.data.repository.BlockedAppRepositoryImpl
 import com.zenmode.app.data.repository.SessionRepositoryImpl
 import com.zenmode.app.data.repository.SettingsRepositoryImpl
 import com.zenmode.app.data.repository.ZenModeRepositoryImpl
+import com.zenmode.app.domain.permission.AccessibilityPermissionMonitor
 import com.zenmode.app.domain.repository.BlockedAppRepository
+import com.zenmode.app.domain.repository.InstalledAppsRepository
 import com.zenmode.app.domain.repository.SessionRepository
 import com.zenmode.app.domain.repository.SettingsRepository
 import com.zenmode.app.domain.repository.ZenModeRepository
@@ -33,4 +37,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInstalledAppsRepository(
+        impl: AndroidInstalledAppsRepository,
+    ): InstalledAppsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAccessibilityPermissionMonitor(
+        impl: AndroidAccessibilityPermissionMonitor,
+    ): AccessibilityPermissionMonitor
 }

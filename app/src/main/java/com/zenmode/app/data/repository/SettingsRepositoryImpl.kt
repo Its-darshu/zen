@@ -38,8 +38,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setShowCallButton(enabled: Boolean) =
         settingsDataSource.setShowCallButton(enabled)
 
-    override suspend fun setConfirmExit(enabled: Boolean) =
-        settingsDataSource.setConfirmExit(enabled)
+    override suspend fun setStrictMode(enabled: Boolean) =
+        settingsDataSource.setStrictMode(enabled)
 
     override suspend fun setOnboardingCompleted(completed: Boolean) =
         settingsDataSource.setOnboardingCompleted(completed)

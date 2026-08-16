@@ -51,7 +51,7 @@ class SettingsDataSource @Inject constructor(
 
     suspend fun setShowCallButton(enabled: Boolean) = edit { it[Keys.SHOW_CALL_BUTTON] = enabled }
 
-    suspend fun setConfirmExit(enabled: Boolean) = edit { it[Keys.CONFIRM_EXIT] = enabled }
+    suspend fun setStrictMode(enabled: Boolean) = edit { it[Keys.STRICT_MODE] = enabled }
 
     suspend fun setOnboardingCompleted(completed: Boolean) =
         edit { it[Keys.ONBOARDING_COMPLETED] = completed }
@@ -86,7 +86,7 @@ class SettingsDataSource @Inject constructor(
             showDate = this[Keys.SHOW_DATE] ?: defaults.showDate,
             use24HourClock = this[Keys.USE_24_HOUR_CLOCK] ?: defaults.use24HourClock,
             showCallButton = this[Keys.SHOW_CALL_BUTTON] ?: defaults.showCallButton,
-            confirmExit = this[Keys.CONFIRM_EXIT] ?: defaults.confirmExit,
+            strictMode = this[Keys.STRICT_MODE] ?: defaults.strictMode,
             onboardingCompleted = this[Keys.ONBOARDING_COMPLETED] ?: defaults.onboardingCompleted,
         )
     }
@@ -100,7 +100,7 @@ class SettingsDataSource @Inject constructor(
         val SHOW_DATE = booleanPreferencesKey("show_date")
         val USE_24_HOUR_CLOCK = booleanPreferencesKey("use_24_hour_clock")
         val SHOW_CALL_BUTTON = booleanPreferencesKey("show_call_button")
-        val CONFIRM_EXIT = booleanPreferencesKey("confirm_exit")
+        val STRICT_MODE = booleanPreferencesKey("strict_mode")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
     }
 

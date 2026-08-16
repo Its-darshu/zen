@@ -26,7 +26,7 @@ interface SettingsRepository {
 
     suspend fun setShowCallButton(enabled: Boolean)
 
-    suspend fun setConfirmExit(enabled: Boolean)
+    suspend fun setStrictMode(enabled: Boolean)
 
     suspend fun setOnboardingCompleted(completed: Boolean)
 
