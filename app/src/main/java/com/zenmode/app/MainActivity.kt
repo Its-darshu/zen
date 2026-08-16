@@ -77,13 +77,11 @@ private fun ZenApp(
 ) {
     val startState by viewModel.startState.collectAsStateWithLifecycle()
     val shouldHoldDevice by viewModel.shouldHoldDevice.collectAsStateWithLifecycle()
-    val sessionActive by viewModel.sessionActive.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     RequestNotificationPermissionOnce()
     HoldDeviceWhileStrictSessionRuns(shouldHoldDevice)
-    ShowOverLockScreenWhileSessionRuns(sessionActive)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -144,22 +142,22 @@ private fun HoldDeviceWhileStrictSessionRuns(shouldHold: Boolean) {
     }
 }
 
-/**
- * Lets the Zen screen appear when the screen wakes during a session.
+/*
+ * Deliberately absent: `setShowWhenLocked(true)`.
  *
- * This does **not** replace or weaken the lock screen: on a device with a
- * secure keyguard the user still unlocks normally, and can still leave. It only
- * means waking the phone shows the session rather than hiding it.
+ * It was tried, and it is a lock-screen bypass. Showing this activity above the
+ * keyguard let the device be woken with the power button and reach the home
+ * screen with no fingerprint or PIN at all — anyone picking up the phone during
+ * a session got straight in.
+ *
+ * A focus app must never weaken the lock screen. The keyguard is the user's
+ * security, not an obstacle to a session, and Zen Mode leaves it completely
+ * alone: waking the phone shows the normal lock screen, and the session is
+ * behind it like everything else.
+ *
+ * Strict mode is what keeps a session enforced after an unlock — the launcher
+ * and every non-essential app are redirected back to the Zen screen.
  */
-@Composable
-private fun ShowOverLockScreenWhileSessionRuns(sessionActive: Boolean) {
-    val activity = LocalContext.current.findActivity() ?: return
-
-    LaunchedEffect(sessionActive) {
-        activity.setShowWhenLocked(sessionActive)
-        activity.setTurnScreenOn(sessionActive)
-    }
-}
 
 @Composable
 private fun rememberLockdownController(): ZenLockdownController? {
