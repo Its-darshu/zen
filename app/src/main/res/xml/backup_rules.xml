@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Zen Mode keeps everything on-device; local history and settings may be
+         restored to the same user's new device, nothing leaves it otherwise. -->
+    <include domain="database" path="." />
+    <include domain="file" path="datastore" />
+</full-backup-content>
