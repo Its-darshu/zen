@@ -37,4 +37,14 @@ interface InstalledAppsRepository {
      * what keeps a strict session recoverable.
      */
     suspend fun getEssentialPackages(): Set<String>
+
+    /**
+     * Everything the user can open, for the launcher's app drawer.
+     *
+     * Unlike [getSelectableApps] this keeps the dialer, Android's settings and
+     * the rest of the protected set: a launcher that hides the phone app is not
+     * a launcher. The two lists answer different questions — "what may I block"
+     * versus "what may I open" — and only the first has anything excluded.
+     */
+    suspend fun getLaunchableApps(): List<InstalledApp>
 }

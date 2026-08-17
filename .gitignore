@@ -12,3 +12,10 @@ local.properties
 *.aab
 /app/build/
 /app/release/
+
+# Signing material. A keystore or a password must never reach this repository.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+release-signing.properties

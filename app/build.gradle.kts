@@ -6,6 +6,35 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// ---------------------------------------------------------------------------
+// Release signing
+//
+// Credentials are read from Gradle properties or the environment and never from
+// the repository: no keystore, no password and no alias is committed here or
+// anywhere else in the tree (see .gitignore).
+//
+// A release build is never signed with the debug key. If the credentials are
+// absent the release build fails with an explanation instead of quietly
+// producing an artifact signed by a key that every Android developer on earth
+// already has. Debug builds are unaffected and keep working with no setup.
+// ---------------------------------------------------------------------------
+
+/** A Gradle property (`-P`, `gradle.properties`) or an environment variable. */
+fun signingCredential(name: String): String? =
+    (providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull)
+        ?.takeIf { it.isNotBlank() }
+
+val releaseSigningCredentials = linkedMapOf(
+    "ZEN_RELEASE_STORE_FILE" to signingCredential("ZEN_RELEASE_STORE_FILE"),
+    "ZEN_RELEASE_STORE_PASSWORD" to signingCredential("ZEN_RELEASE_STORE_PASSWORD"),
+    "ZEN_RELEASE_KEY_ALIAS" to signingCredential("ZEN_RELEASE_KEY_ALIAS"),
+    "ZEN_RELEASE_KEY_PASSWORD" to signingCredential("ZEN_RELEASE_KEY_PASSWORD"),
+)
+
+val missingReleaseCredentials = releaseSigningCredentials.filterValues { it == null }.keys.toList()
+val hasReleaseSigningCredentials = missingReleaseCredentials.isEmpty()
+val releaseKeystore = releaseSigningCredentials["ZEN_RELEASE_STORE_FILE"]?.let { file(it) }
+
 android {
     namespace = "com.zenmode.app"
     compileSdk = 36
@@ -25,6 +54,24 @@ android {
         }
     }
 
+    signingConfigs {
+        // Created only when every credential is present. Half a config is worse
+        // than none: it would fail late, inside the signing task, with a message
+        // about a null password rather than about the missing setup.
+        if (hasReleaseSigningCredentials) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = releaseSigningCredentials["ZEN_RELEASE_STORE_PASSWORD"]
+                keyAlias = releaseSigningCredentials["ZEN_RELEASE_KEY_ALIAS"]
+                keyPassword = releaseSigningCredentials["ZEN_RELEASE_KEY_PASSWORD"]
+                // minSdk is 29, so the JAR signature v1 buys nothing.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -37,9 +84,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Signed with the debug key so that a release build is verifiable locally.
-            // Replace with a real signing config before distributing.
-            signingConfig = signingConfigs.getByName("debug")
+            // Deliberately left unset when credentials are absent. There is no
+            // fallback to the debug key — `verifyReleaseSigning` stops the build
+            // first, so an unsigned or debug-signed release cannot be produced
+            // by accident.
+            signingConfig = if (hasReleaseSigningCredentials) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
         }
     }
 
@@ -74,6 +127,64 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+/**
+ * Stops a release build that has nothing to sign it with.
+ *
+ * Without this the build would still succeed and hand back an unsigned APK,
+ * which is easy to mistake for a releasable one. Failing here, loudly, with the
+ * exact property names, is the whole point of the check.
+ */
+val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
+    group = "verification"
+    description = "Fails a release build when production signing credentials are unavailable."
+
+    // Captured at configuration time so the check stays configuration-cache safe.
+    val missing = missingReleaseCredentials
+    val keystore = releaseKeystore
+
+    doLast {
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                """
+                |Release signing credentials are unavailable, so this release build was stopped.
+                |
+                |Zen never signs a release with the debug key: that key is shared by every
+                |Android install on earth, so anything signed with it can be replaced by
+                |anyone. There is deliberately no fallback.
+                |
+                |Missing: ${missing.joinToString(", ")}
+                |
+                |Supply all four as Gradle properties or environment variables:
+                |
+                |  ZEN_RELEASE_STORE_FILE      path to the release keystore
+                |  ZEN_RELEASE_STORE_PASSWORD  keystore password
+                |  ZEN_RELEASE_KEY_ALIAS       key alias
+                |  ZEN_RELEASE_KEY_PASSWORD    password for that key
+                |
+                |Put them in ~/.gradle/gradle.properties or the CI secret store —
+                |never in this repository, and never in a committed file.
+                |
+                |`./gradlew assembleDebug` needs none of this and is unaffected.
+                """.trimMargin(),
+            )
+        }
+        if (keystore != null && !keystore.isFile) {
+            throw GradleException(
+                "ZEN_RELEASE_STORE_FILE points at ${keystore.absolutePath}, which is not a file.",
+            )
+        }
+    }
+}
+
+// Guards the entry points that can produce a release artifact. Attached to the
+// packaging tasks as well as the assemble/bundle aliases, so invoking a lower
+// level task directly does not slip past the check.
+tasks.configureEach {
+    if (name in setOf("assembleRelease", "bundleRelease", "packageRelease", "packageReleaseBundle")) {
+        dependsOn(verifyReleaseSigning)
     }
 }
 

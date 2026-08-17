@@ -19,6 +19,7 @@ private class FakeInstalledAppsRepository(
     override suspend fun getSelectableApps(): List<InstalledApp> = apps
     override suspend fun getProtectedPackages(): Set<String> = protected
     override suspend fun getEssentialPackages(): Set<String> = protected
+    override suspend fun getLaunchableApps(): List<InstalledApp> = apps
 }
 
 class GetSelectableAppsUseCaseTest {

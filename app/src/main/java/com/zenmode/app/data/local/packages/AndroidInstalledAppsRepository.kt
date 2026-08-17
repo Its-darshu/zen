@@ -35,13 +35,30 @@ class AndroidInstalledAppsRepository @Inject constructor(
 
     override suspend fun getSelectableApps(): List<InstalledApp> = withContext(ioDispatcher) {
         val protected = protectedPackages()
+        // The blocklist must not offer the apps that are never blocked anyway.
+        queryLaunchableApps().filterNot { it.packageName in protected }
+    }
+
+    override suspend fun getLaunchableApps(): List<InstalledApp> = withContext(ioDispatcher) {
+        // The drawer shows everything openable, protected apps included: a
+        // launcher without the dialer or Settings would be useless.
+        queryLaunchableApps()
+    }
+
+    /**
+     * The one package-manager scan, shared by both lists.
+     *
+     * Membership is decided by having a launcher activity, which is Android's
+     * own definition of "the user can open this" — no hardcoded package names,
+     * and system components without an entry point never appear.
+     */
+    private fun queryLaunchableApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
 
-        packageManager.queryIntentActivities(launcherIntent, 0)
+        return packageManager.queryIntentActivities(launcherIntent, 0)
             .asSequence()
             .mapNotNull { resolveInfo -> resolveInfo.activityInfo?.applicationInfo }
             .distinctBy { it.packageName }
-            .filterNot { it.packageName in protected }
             .map { info ->
                 InstalledApp(
                     packageName = info.packageName,
@@ -60,7 +77,12 @@ class AndroidInstalledAppsRepository @Inject constructor(
 
     override suspend fun getEssentialPackages(): Set<String> = withContext(ioDispatcher) {
         // Everything protected except the launcher: strict mode blocks Home.
-        protectedPackages() - launcherPackages()
+        //
+        // Zen Mode's own package is added back afterwards. Once Zen Launcher is
+        // the default launcher, the resolved home package *is* this app — and
+        // subtracting it would make strict mode redirect the app to itself,
+        // forever.
+        (protectedPackages() - launcherPackages()) + context.packageName
     }
 
     private fun launcherPackages(): Set<String> = buildSet {

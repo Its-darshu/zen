@@ -46,6 +46,7 @@ import com.zenmode.app.core.designsystem.ZenTextPrimary
 import com.zenmode.app.core.designsystem.ZenTextSecondary
 import com.zenmode.app.core.designsystem.ZenTopBar
 import com.zenmode.app.domain.model.SelectableApp
+import com.zenmode.app.feature.common.AppIcon
 
 object BlockedAppsTestTags {
     const val SCREEN = "blocked_apps_screen"

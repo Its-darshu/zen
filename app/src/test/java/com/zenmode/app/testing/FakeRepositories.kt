@@ -218,3 +218,62 @@ class FakeSettingsRepository(initial: ZenSettings = ZenSettings()) : SettingsRep
         settings.value = ZenSettings(onboardingCompleted = settings.value.onboardingCompleted)
     }
 }
+
+class FakeFavoriteAppsRepository(
+    initial: Set<String> = emptySet(),
+) : com.zenmode.app.domain.repository.FavoriteAppsRepository {
+
+    private val favorites = MutableStateFlow(initial)
+
+    override fun observeFavorites(): Flow<Set<String>> = favorites
+
+    override suspend fun getFavorites(): Set<String> = favorites.value
+
+    override suspend fun addFavorite(packageName: String) {
+        if (packageName.isBlank()) return
+        favorites.value = favorites.value + packageName
+    }
+
+    override suspend fun removeFavorite(packageName: String) {
+        favorites.value = favorites.value - packageName
+    }
+
+    override suspend fun setFavorite(packageName: String, favorite: Boolean) {
+        if (favorite) addFavorite(packageName) else removeFavorite(packageName)
+    }
+
+    override suspend fun removeUninstalled(installedPackages: Set<String>) {
+        if (installedPackages.isEmpty()) return
+        favorites.value = favorites.value.filterTo(mutableSetOf()) { it in installedPackages }
+    }
+}
+
+class FakeRecentAppsRepository(
+    initial: List<String> = emptyList(),
+) : com.zenmode.app.domain.repository.RecentAppsRepository {
+
+    private val recents = MutableStateFlow(initial)
+
+    override fun observeRecentPackages(): Flow<List<String>> = recents
+
+    override suspend fun getRecentPackages(): List<String> = recents.value
+
+    override suspend fun recordOpened(packageName: String) {
+        if (packageName.isBlank()) return
+        recents.value = (listOf(packageName) + recents.value.filterNot { it == packageName })
+            .take(com.zenmode.app.data.local.datastore.RecentAppsDataSource.MAX_ENTRIES)
+    }
+
+    override suspend fun remove(packageName: String) {
+        recents.value = recents.value.filterNot { it == packageName }
+    }
+
+    override suspend fun clear() {
+        recents.value = emptyList()
+    }
+
+    override suspend fun removeUninstalled(installedPackages: Set<String>) {
+        if (installedPackages.isEmpty()) return
+        recents.value = recents.value.filter { it in installedPackages }
+    }
+}

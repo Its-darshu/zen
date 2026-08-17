@@ -7,8 +7,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.zenmode.app.core.designsystem.ZenModeTheme
+import com.zenmode.app.domain.model.LockWallpaperCapability
+import com.zenmode.app.domain.model.WallpaperSettings
 import com.zenmode.app.domain.model.ZenSettings
 import com.zenmode.app.system.LockdownCapability
+import com.zenmode.app.system.launcher.DefaultLauncherState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,6 +40,11 @@ class SettingsScreenTest {
         var clearHistoryConfirmed = false
         var openedBlockedApps = false
         var openedPermissions = false
+        var setDefaultLauncher = false
+        var choseHomeWallpaper = false
+        var clearedHomeWallpaper = false
+        var choseLockWallpaper = false
+        var clearedLockWallpaper = false
     }
 
     private fun setContent(
@@ -50,6 +58,11 @@ class SettingsScreenTest {
                     onBack = {},
                     onOpenBlockedApps = { recorder.openedBlockedApps = true },
                     onOpenPermissions = { recorder.openedPermissions = true },
+                    onSetDefaultLauncher = { recorder.setDefaultLauncher = true },
+                    onChooseHomeWallpaper = { recorder.choseHomeWallpaper = true },
+                    onClearHomeWallpaper = { recorder.clearedHomeWallpaper = true },
+                    onChooseLockWallpaper = { recorder.choseLockWallpaper = true },
+                    onClearLockWallpaper = { recorder.clearedLockWallpaper = true },
                     onSelectDefaultDuration = { recorder.defaultDuration = it },
                     onConfirmStartChange = { recorder.confirmStart = it },
                     onCompletionNotificationChange = { recorder.completionNotification = it },
@@ -159,7 +172,11 @@ class SettingsScreenTest {
     fun `the accessibility row reports the real state`() {
         setContent(defaults.copy(accessibilityEnabled = false))
 
-        composeRule.onNodeWithText("Off").performScrollTo().assertIsDisplayed()
+        // "Off" now labels several rows, so assert on the accessibility row itself.
+        composeRule
+            .onNodeWithTag(SettingsTestTags.ACCESSIBILITY)
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule
             .onNodeWithText("Blocking is inactive", substring = true)
             .performScrollTo()
@@ -186,6 +203,139 @@ class SettingsScreenTest {
             .onNodeWithText("dedicated device", substring = true)
             .performScrollTo()
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun `the launcher row reports the real home-app state`() {
+        setContent(defaults.copy(defaultLauncherState = DefaultLauncherState.OTHER_LAUNCHER))
+
+        composeRule
+            .onNodeWithText("Another launcher is your home screen", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `the launcher row never claims the app can set itself as default`() {
+        val recorder = setContent(
+            defaults.copy(defaultLauncherState = DefaultLauncherState.NOT_CHOSEN),
+        )
+
+        composeRule
+            .onNodeWithText("Android asks each time", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(SettingsTestTags.DEFAULT_LAUNCHER)
+            .performScrollTo()
+            .performClick()
+
+        // Tapping only opens Android's own picker; the choice is the user's.
+        assertTrue(recorder.setDefaultLauncher)
+    }
+
+    @Test
+    fun `the gesture section states what each gesture does`() {
+        setContent(defaults)
+
+        composeRule
+            .onNodeWithTag(SettingsTestTags.GESTURE_SWIPE_UP)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("The APPS button does the same thing.")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `the gesture section promises nothing about Android's own gestures`() {
+        setContent(defaults)
+
+        composeRule
+            .onNodeWithText("Back, Home and Recents gestures are untouched", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `no wallpaper reads as a black background, not as an error`() {
+        setContent(defaults)
+
+        composeRule
+            .onNodeWithText("No wallpaper selected", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `choosing a home wallpaper opens the picker`() {
+        val recorder = setContent(defaults)
+
+        composeRule.onNodeWithTag(SettingsTestTags.HOME_WALLPAPER).performScrollTo().performClick()
+
+        assertTrue(recorder.choseHomeWallpaper)
+    }
+
+    @Test
+    fun `turning the home wallpaper off is not offered when none is set`() {
+        setContent(defaults)
+
+        composeRule.onNodeWithTag(SettingsTestTags.HOME_WALLPAPER_OFF).assertDoesNotExist()
+    }
+
+    @Test
+    fun `turning the home wallpaper off is offered once one is set`() {
+        setContent(
+            defaults.copy(
+                wallpaper = WallpaperSettings(homeEnabled = true, homeUri = "content://image"),
+            ),
+        )
+
+        composeRule
+            .onNodeWithTag(SettingsTestTags.HOME_WALLPAPER_OFF)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `the lock wallpaper warns that it is a system-wide change`() {
+        setContent(defaults)
+
+        composeRule
+            .onNodeWithText("system-wide change that replaces your current one", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `the lock wallpaper says the old one cannot be restored`() {
+        setContent(
+            defaults.copy(
+                wallpaper = WallpaperSettings(lockEnabled = true, lockUri = "content://image"),
+            ),
+        )
+
+        composeRule
+            .onNodeWithText("cannot put back whatever lock wallpaper you had before", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `a device that cannot change the lock wallpaper says so and offers nothing`() {
+        val recorder = setContent(
+            defaults.copy(lockWallpaperCapability = LockWallpaperCapability.UNSUPPORTED),
+        )
+
+        composeRule
+            .onNodeWithText("does not allow apps to change the lock-screen wallpaper", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsTestTags.LOCK_WALLPAPER).performScrollTo().performClick()
+
+        // Tapping an unavailable capability must not open a picker.
+        assertFalse(recorder.choseLockWallpaper)
     }
 
     @Test

@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup rules for Android 11 and below (`android:fullBackupContent`).
+
+    Nothing is backed up. `android:allowBackup="false"` already settles it on
+    these versions; the explicit exclusions are here so that flipping that flag
+    back on cannot silently start uploading anything, and so the intent is
+    written down where someone changing it will read it.
+
+    Why nothing: what this app stores is a record of when you chose to stop
+    using your phone, which apps you find distracting, which apps you pinned and
+    which you opened. That is a behavioural profile. Both specifications say the
+    app stays local, and neither asks for backup, so it stays on the device.
+
+    The cost, stated plainly: session history, streaks, the blocked-app list and
+    the launcher's choices do not follow you to a new phone. See docs/PRIVACY.md.
+-->
 <full-backup-content>
-    <!-- Zen Mode keeps everything on-device; local history and settings may be
-         restored to the same user's new device, nothing leaves it otherwise. -->
-    <include domain="database" path="." />
-    <include domain="file" path="datastore" />
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
 </full-backup-content>

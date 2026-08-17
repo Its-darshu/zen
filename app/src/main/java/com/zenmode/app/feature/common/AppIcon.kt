@@ -1,4 +1,4 @@
-package com.zenmode.app.feature.blockedapps
+package com.zenmode.app.feature.common
 
 import android.content.Context
 import androidx.compose.foundation.Image
@@ -24,6 +24,9 @@ private val iconCache = mutableMapOf<String, ImageBitmap?>()
  *
  * Loaded straight from the package manager off the main thread — no image
  * library, and nothing about the device's apps leaves the phone.
+ *
+ * Shared by the blocked-apps picker and the launcher drawer. The cache is what
+ * keeps scrolling a few hundred apps from re-decoding the same bitmaps.
  */
 @Composable
 fun AppIcon(

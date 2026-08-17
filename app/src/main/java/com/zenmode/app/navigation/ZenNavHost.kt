@@ -86,6 +86,7 @@ fun ZenNavHost(
                 onBack = { navController.popBackStack() },
                 onOpenBlockedApps = { navController.navigate(ZenRoute.BLOCKED_APPS) },
                 onOpenPermissions = { navController.navigate(ZenRoute.PERMISSIONS) },
+                onMessage = onMessage,
             )
         }
 

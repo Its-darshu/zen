@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zenmode.app.core.designsystem.ZenAlert
 import com.zenmode.app.core.designsystem.ZenConfirmDialog
@@ -34,7 +37,9 @@ import com.zenmode.app.core.designsystem.ZenSwitchRow
 import com.zenmode.app.core.designsystem.ZenTextSecondary
 import com.zenmode.app.core.designsystem.ZenTopBar
 import com.zenmode.app.core.time.DurationFormat
+import com.zenmode.app.domain.model.LockWallpaperCapability
 import com.zenmode.app.system.LockdownCapability
+import com.zenmode.app.system.launcher.DefaultLauncherState
 
 object SettingsTestTags {
     const val SCREEN = "settings_screen"
@@ -49,6 +54,14 @@ object SettingsTestTags {
     const val BLOCKED_APPS = "settings_blocked_apps"
     const val ACCESSIBILITY = "settings_accessibility"
     const val CLEAR_HISTORY = "settings_clear_history"
+    const val DEFAULT_LAUNCHER = "settings_default_launcher"
+    const val GESTURE_SWIPE_UP = "settings_gesture_swipe_up"
+    const val GESTURE_LONG_PRESS = "settings_gesture_long_press"
+    const val GESTURE_LONG_PRESS_APP = "settings_gesture_long_press_app"
+    const val HOME_WALLPAPER = "settings_home_wallpaper"
+    const val HOME_WALLPAPER_OFF = "settings_home_wallpaper_off"
+    const val LOCK_WALLPAPER = "settings_lock_wallpaper"
+    const val LOCK_WALLPAPER_OFF = "settings_lock_wallpaper_off"
     fun duration(minutes: Int) = "settings_duration_$minutes"
 }
 
@@ -56,6 +69,41 @@ object SettingsTestTags {
  * Says what strict mode will actually achieve on *this* device, rather than
  * describing the best case and hoping.
  */
+/** Only images, and only the one the user picks. */
+private val IMAGE_MIME_TYPES = arrayOf("image/*")
+
+/**
+ * Says exactly what changing the lock wallpaper does — including that turning
+ * it off cannot restore the previous one, because Android does not let an app
+ * read the existing wallpaper to back it up.
+ */
+private fun lockWallpaperDescription(
+    capability: LockWallpaperCapability,
+    enabled: Boolean,
+): String = when {
+    capability == LockWallpaperCapability.UNSUPPORTED ->
+        "This device does not allow apps to change the lock-screen wallpaper."
+    enabled ->
+        "Your image is the device lock-screen wallpaper. This is a system-wide change, " +
+            "not just inside Zen Launcher."
+    else ->
+        "Sets the device lock-screen wallpaper — a system-wide change that replaces your " +
+            "current one. It cannot be restored afterwards. Your PIN, password and " +
+            "fingerprint are untouched."
+}
+
+/** States the real home-app situation, and who gets to change it. */
+private fun launcherDescription(state: DefaultLauncherState): String = when (state) {
+    DefaultLauncherState.ZEN_LAUNCHER ->
+        "Zen Launcher is your home screen. You can switch back at any time here " +
+            "or in Android's settings."
+    DefaultLauncherState.OTHER_LAUNCHER ->
+        "Another launcher is your home screen. Only you can change this — Android " +
+            "will ask you to confirm."
+    DefaultLauncherState.NOT_CHOSEN ->
+        "No home app has been chosen yet, so Android asks each time you press Home."
+}
+
 private fun strictModeDescription(capability: LockdownCapability): String {
     val blocking = "Blocks every app instead of just your list, and blocks the home " +
         "screen too, so a session is the only thing on the phone. The dialer, " +
@@ -78,14 +126,60 @@ fun SettingsRoute(
     onBack: () -> Unit,
     onOpenBlockedApps: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onMessage: (String) -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // The home app can change while the user is away in Android's picker, and
+    // Android does not tell us; re-read when the screen comes back.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refresh()
+        onPauseOrDispose { }
+    }
+
+    val roleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { viewModel.refresh() }
+
+    // OpenDocument rather than the photo picker: only this grants access that
+    // survives a reboot, and the wallpaper has to outlive one.
+    val homeWallpaperPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let {
+            viewModel.onHomeWallpaperPicked(it.toString()) { error ->
+                if (error != null) onMessage(error)
+            }
+        }
+    }
+
+    val lockWallpaperPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let {
+            viewModel.onLockWallpaperPicked(it.toString()) { error ->
+                if (error != null) onMessage(error)
+            }
+        }
+    }
     SettingsScreen(
         state = state,
         onBack = onBack,
         onOpenBlockedApps = onOpenBlockedApps,
         onOpenPermissions = onOpenPermissions,
+        onChooseHomeWallpaper = { homeWallpaperPicker.launch(IMAGE_MIME_TYPES) },
+        onClearHomeWallpaper = viewModel::onHomeWallpaperCleared,
+        onChooseLockWallpaper = { lockWallpaperPicker.launch(IMAGE_MIME_TYPES) },
+        onClearLockWallpaper = {
+            viewModel.onLockWallpaperCleared { error -> if (error != null) onMessage(error) }
+        },
+        onSetDefaultLauncher = {
+            // Ask through the system role dialog where possible; otherwise send
+            // the user to Android's home-app screen. The app cannot set this.
+            val roleIntent = viewModel.requestHomeRoleIntent()
+            if (roleIntent != null) roleLauncher.launch(roleIntent) else viewModel.openHomeSettings()
+        },
         onSelectDefaultDuration = viewModel::setDefaultDuration,
         onConfirmStartChange = viewModel::setConfirmStart,
         onCompletionNotificationChange = viewModel::setCompletionNotification,
@@ -107,6 +201,11 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenBlockedApps: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onSetDefaultLauncher: () -> Unit,
+    onChooseHomeWallpaper: () -> Unit,
+    onClearHomeWallpaper: () -> Unit,
+    onChooseLockWallpaper: () -> Unit,
+    onClearLockWallpaper: () -> Unit,
     onSelectDefaultDuration: (Int) -> Unit,
     onConfirmStartChange: (Boolean) -> Unit,
     onCompletionNotificationChange: (Boolean) -> Unit,
@@ -241,6 +340,102 @@ fun SettingsScreen(
                 onClick = onOpenPermissions,
                 modifier = Modifier.testTag(SettingsTestTags.ACCESSIBILITY),
             )
+
+            ZenHorizontalDivider()
+            ZenSectionHeader("Zen Launcher")
+
+            ZenNavigationRow(
+                title = "Set as default launcher",
+                value = when (state.defaultLauncherState) {
+                    DefaultLauncherState.ZEN_LAUNCHER -> "On"
+                    DefaultLauncherState.OTHER_LAUNCHER -> "Off"
+                    DefaultLauncherState.NOT_CHOSEN -> "Not chosen"
+                },
+                description = launcherDescription(state.defaultLauncherState),
+                onClick = onSetDefaultLauncher,
+                modifier = Modifier.testTag(SettingsTestTags.DEFAULT_LAUNCHER),
+            )
+
+            ZenHorizontalDivider()
+            ZenSectionHeader("Launcher gestures")
+
+            // Described, not configurable. Gestures are invisible, so saying
+            // what they do is worth a few lines; offering remapping we have not
+            // built would be a fake setting.
+            ZenNavigationRow(
+                title = "Swipe up on home",
+                value = "App drawer",
+                description = "The APPS button does the same thing.",
+                onClick = {},
+                modifier = Modifier.testTag(SettingsTestTags.GESTURE_SWIPE_UP),
+            )
+            ZenNavigationRow(
+                title = "Long press on home",
+                value = "These settings",
+                description = "The SETTINGS button does the same thing.",
+                onClick = {},
+                modifier = Modifier.testTag(SettingsTestTags.GESTURE_LONG_PRESS),
+            )
+            ZenNavigationRow(
+                title = "Long press a pinned app",
+                value = "Unpin",
+                description = "Long press it again in the app drawer to pin it back. " +
+                    "Android's own Back, Home and Recents gestures are untouched.",
+                onClick = {},
+                modifier = Modifier.testTag(SettingsTestTags.GESTURE_LONG_PRESS_APP),
+            )
+
+            ZenHorizontalDivider()
+            ZenSectionHeader("Wallpaper")
+
+            ZenNavigationRow(
+                title = "Home screen",
+                value = if (state.wallpaper.hasHomeWallpaper) "On" else "Off",
+                description = if (state.wallpaper.hasHomeWallpaper) {
+                    "Your image is drawn behind the launcher. Zen sessions stay pure black."
+                } else {
+                    "No wallpaper selected — the launcher background is pure black."
+                },
+                onClick = onChooseHomeWallpaper,
+                modifier = Modifier.testTag(SettingsTestTags.HOME_WALLPAPER),
+            )
+            if (state.wallpaper.hasHomeWallpaper) {
+                ZenNavigationRow(
+                    title = "Turn off home wallpaper",
+                    description = "Goes back to a pure black launcher background.",
+                    onClick = onClearHomeWallpaper,
+                    modifier = Modifier.testTag(SettingsTestTags.HOME_WALLPAPER_OFF),
+                )
+            }
+
+            ZenNavigationRow(
+                title = "Lock screen",
+                value = when {
+                    state.lockWallpaperCapability == LockWallpaperCapability.UNSUPPORTED ->
+                        "Unavailable"
+                    state.wallpaper.hasLockWallpaper -> "On"
+                    else -> "Off"
+                },
+                description = lockWallpaperDescription(
+                    capability = state.lockWallpaperCapability,
+                    enabled = state.wallpaper.hasLockWallpaper,
+                ),
+                onClick = {
+                    if (state.lockWallpaperCapability == LockWallpaperCapability.SUPPORTED) {
+                        onChooseLockWallpaper()
+                    }
+                },
+                modifier = Modifier.testTag(SettingsTestTags.LOCK_WALLPAPER),
+            )
+            if (state.wallpaper.hasLockWallpaper) {
+                ZenNavigationRow(
+                    title = "Turn off lock wallpaper",
+                    description = "Clears it. Android then mirrors your home wallpaper — it " +
+                        "cannot put back whatever lock wallpaper you had before.",
+                    onClick = onClearLockWallpaper,
+                    modifier = Modifier.testTag(SettingsTestTags.LOCK_WALLPAPER_OFF),
+                )
+            }
 
             ZenHorizontalDivider()
             ZenSectionHeader("Statistics")

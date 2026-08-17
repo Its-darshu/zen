@@ -3,14 +3,20 @@ package com.zenmode.app.di
 import com.zenmode.app.data.local.packages.AndroidInstalledAppsRepository
 import com.zenmode.app.data.permission.AndroidAccessibilityPermissionMonitor
 import com.zenmode.app.data.repository.BlockedAppRepositoryImpl
+import com.zenmode.app.data.repository.FavoriteAppsRepositoryImpl
+import com.zenmode.app.data.repository.RecentAppsRepositoryImpl
 import com.zenmode.app.data.repository.SessionRepositoryImpl
 import com.zenmode.app.data.repository.SettingsRepositoryImpl
+import com.zenmode.app.data.repository.WallpaperRepositoryImpl
 import com.zenmode.app.data.repository.ZenModeRepositoryImpl
 import com.zenmode.app.domain.permission.AccessibilityPermissionMonitor
 import com.zenmode.app.domain.repository.BlockedAppRepository
+import com.zenmode.app.domain.repository.FavoriteAppsRepository
 import com.zenmode.app.domain.repository.InstalledAppsRepository
+import com.zenmode.app.domain.repository.RecentAppsRepository
 import com.zenmode.app.domain.repository.SessionRepository
 import com.zenmode.app.domain.repository.SettingsRepository
+import com.zenmode.app.domain.repository.WallpaperRepository
 import com.zenmode.app.domain.repository.ZenModeRepository
 import dagger.Binds
 import dagger.Module
@@ -37,6 +43,20 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFavoriteAppsRepository(
+        impl: FavoriteAppsRepositoryImpl,
+    ): FavoriteAppsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWallpaperRepository(impl: WallpaperRepositoryImpl): WallpaperRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRecentAppsRepository(impl: RecentAppsRepositoryImpl): RecentAppsRepository
 
     @Binds
     @Singleton

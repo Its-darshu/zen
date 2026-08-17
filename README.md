@@ -94,20 +94,48 @@ command line.
 ## Build
 
 ```bash
-./gradlew :app:assembleDebug          # debug APK
-./gradlew :app:assembleRelease        # release APK (R8, ~2.9 MB)
-./gradlew :app:bundleRelease          # AAB
+./gradlew :app:assembleDebug          # debug APK — no setup needed
+./gradlew :app:assembleRelease        # release APK (R8) — needs signing credentials
+./gradlew :app:bundleRelease          # AAB — needs signing credentials
 ```
 
-The release build is currently signed with the debug key so it can be installed
-and tested locally. **Replace `signingConfig` in `app/build.gradle.kts` with a
-real signing config before distributing.** No keystore is committed to this
-repository, and none should be.
+### Release signing
+
+A release build is **never** signed with the debug key. That key ships with
+every Android SDK install, so anything signed with it can be replaced by anyone
+who cares to. There is no fallback: if the credentials are missing, the release
+build stops with an error naming exactly what it needs. Debug builds are
+unaffected and need no setup at all.
+
+Supply all four as Gradle properties or environment variables:
+
+| Name | Value |
+|---|---|
+| `ZEN_RELEASE_STORE_FILE` | Path to the release keystore |
+| `ZEN_RELEASE_STORE_PASSWORD` | Keystore password |
+| `ZEN_RELEASE_KEY_ALIAS` | Key alias |
+| `ZEN_RELEASE_KEY_PASSWORD` | Password for that key |
+
+Put them in `~/.gradle/gradle.properties` or a CI secret store — never in this
+repository. No keystore, password or alias is committed here, `.gitignore`
+refuses `*.jks`, `*.keystore` and the usual properties files, and the keystore
+itself belongs outside the project directory.
+
+```bash
+ZEN_RELEASE_STORE_FILE=~/keys/zen-release.jks \
+ZEN_RELEASE_STORE_PASSWORD=… \
+ZEN_RELEASE_KEY_ALIAS=zen \
+ZEN_RELEASE_KEY_PASSWORD=… \
+./gradlew :app:assembleRelease
+```
+
+The check runs as `:app:verifyReleaseSigning` and guards `assembleRelease`,
+`bundleRelease` and the packaging tasks beneath them.
 
 ## Testing
 
 ```bash
-./gradlew :app:testDebugUnitTest --rerun-tasks   # 330 tests, JVM only
+./gradlew :app:testDebugUnitTest --rerun-tasks   # 488 tests, JVM only
 ./gradlew :app:connectedDebugAndroidTest         # needs a device or emulator
 ```
 
@@ -129,6 +157,7 @@ access, opening a blocked app, rebooting mid-session — is in
 | `FOREGROUND_SERVICE` + `..._SPECIAL_USE` | Keeps a running session alive and visible | Sessions cannot run in the background |
 | `SCHEDULE_EXACT_ALARM` | Ends a session at the moment it is due, even in Doze | Sessions still end, possibly a few minutes late — the app says so before you start |
 | `RECEIVE_BOOT_COMPLETED` | Restores a session that was running when the device restarted | Recovery happens on next app launch instead |
+| `SET_WALLPAPER` | Changing the lock-screen wallpaper, when the user asks for it | Normal permission, never prompted; the device may still refuse, and the app says so |
 | `POST_NOTIFICATIONS` | The ongoing and completion notifications | Everything works; you just do not see them |
 
 Accessibility access is **not** a manifest permission — the user grants it in
@@ -196,8 +225,11 @@ than working around them:
 ## Privacy
 
 Zen Mode collects nothing, stores everything locally, and has no way to send
-data anywhere — it holds no `INTERNET` permission. See
-[docs/PRIVACY.md](docs/PRIVACY.md).
+data anywhere — it holds no `INTERNET` permission. Android backup is switched
+off as well, on both the cloud and phone-to-phone routes, so nothing leaves the
+device at all; the cost is that nothing follows you to a new phone either. See
+[docs/PRIVACY.md](docs/PRIVACY.md), which spells out exactly what is stored,
+including the launcher's recent-app list and how wallpaper references work.
 
 ## License
 

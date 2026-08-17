@@ -22,6 +22,15 @@
     <!-- Restores a session that was running when the device restarted. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!--
+      Setting the *lock-screen* wallpaper, which is a system-wide change the
+      user asks for explicitly. The launcher's own home wallpaper needs no
+      permission: the app draws that itself from the image the user picked.
+      This is a normal permission — no runtime prompt, no access to any image
+      the user has not chosen.
+    -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
     <!-- The ongoing-session and completion notifications (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -43,7 +52,7 @@
 
     <application
         android:name=".ZenApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -61,6 +70,32 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          The home screen, used only if the user explicitly chooses Zen Launcher
+          in Android's home-app picker. Declaring the HOME category makes the app
+          *available* as a launcher; it never makes it the default. Android will
+          ask the user, which is the only way this can happen.
+
+          Launcher attributes: a home activity must be a single, always-ready
+          instance with no back stack and no entry in Recents.
+        -->
+        <activity
+            android:name=".ZenLauncherActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:clearTaskOnLaunch="true"
+            android:taskAffinity="com.zenmode.app.launcher"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:theme="@style/Theme.ZenMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

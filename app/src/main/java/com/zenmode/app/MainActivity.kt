@@ -29,6 +29,7 @@ import com.zenmode.app.core.designsystem.ZenModeTheme
 import com.zenmode.app.navigation.AppStartState
 import com.zenmode.app.navigation.ZenAppViewModel
 import com.zenmode.app.navigation.ZenNavHost
+import com.zenmode.app.navigation.ZenRoute
 import com.zenmode.app.system.CallLauncher
 import com.zenmode.app.system.LockdownAction
 import com.zenmode.app.system.LockdownPolicy
@@ -51,11 +52,28 @@ class MainActivity : ComponentActivity() {
         // Does nothing unless this app has been provisioned as device owner.
         lockdownController.applyDeviceOwnerPoliciesIfPossible()
 
+        val requestedDestination = intent?.getStringExtra(EXTRA_START_DESTINATION)
+
         setContent {
             ZenModeTheme {
-                ZenApp(onCall = { callLauncher.openDialer() })
+                ZenApp(
+                    onCall = { callLauncher.openDialer() },
+                    requestedStartDestination = requestedDestination,
+                )
             }
         }
+    }
+
+    companion object {
+        /**
+         * Lets Zen Launcher open a specific screen — currently only settings.
+         *
+         * Absent for every other entry point, so the app icon and the blocker's
+         * redirect behave exactly as they always have.
+         */
+        const val EXTRA_START_DESTINATION = "com.zenmode.app.extra.START_DESTINATION"
+
+        const val DESTINATION_SETTINGS = "settings"
     }
 
     /**
@@ -73,6 +91,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun ZenApp(
     onCall: () -> Boolean,
+    requestedStartDestination: String? = null,
     viewModel: ZenAppViewModel = hiltViewModel(),
 ) {
     val startState by viewModel.startState.collectAsStateWithLifecycle()
@@ -94,7 +113,12 @@ private fun ZenApp(
             when (val state = startState) {
                 AppStartState.Loading -> Unit
                 is AppStartState.Ready -> ZenNavHost(
-                    startDestination = state.startRoute,
+                    // A running session always wins: being sent to settings must
+                    // never take the user off an active Zen screen.
+                    startDestination = resolveStartDestination(
+                        computed = state.startRoute,
+                        requested = requestedStartDestination,
+                    ),
                     onCall = {
                         if (!onCall()) {
                             scope.launch {
@@ -192,4 +216,16 @@ private fun RequestNotificationPermissionOnce() {
     LaunchedEffect(Unit) {
         launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
+}
+
+/**
+ * Honours a requested destination only when the app would otherwise have opened
+ * on Home. Onboarding still comes first on a fresh install, and an active
+ * session still wins over everything.
+ */
+private fun resolveStartDestination(computed: String, requested: String?): String = when {
+    requested == null -> computed
+    computed != ZenRoute.HOME -> computed
+    requested == MainActivity.DESTINATION_SETTINGS -> ZenRoute.SETTINGS
+    else -> computed
 }
